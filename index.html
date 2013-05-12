@@ -1,0 +1,257 @@
+<!doctype HTML>
+<!-- Copyright 2013 danielstern.ca - feel free to examine, learn and apply -->
+
+<html ng-app >  <!-- the ng-app tag needs to be in your html, body or section for angular.js to work right -->
+  <script src="lib/angular/angular.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
+  <style type="text/css">
+     
+	body {
+    color: #666;
+    background-color: #dedede }
+	
+	.netValueMode {
+	
+	  display:none;
+	
+	}
+	
+	.not-interestMode {
+	 
+	  display:none;  
+	
+	}
+	
+	div {
+	
+	    margin-bottom: 10px;
+	
+	}
+	
+	.tiny {
+	
+	  font-size: 9px;
+	
+	}
+	
+  </style>
+  <title>Compound Rate of Return Calculator</title>
+<body ng-controller="calculator">
+<container ng-model='main' >
+  <div>
+  <h1>{{calcname}}</h1>
+	<input ng-model='calculatorKind'  name='calculatorKind' value='netValueMode'  title='Yearly' type='radio'>Net Value Calculator
+	<input ng-model='calculatorKind' name='calculatorKind'  value='interestMode'  title='Monthly' type='radio'>Compound Rate of Return Calculator
+
+	
+  </div>
+  <div>
+	Starting Value : $<input ng-model='startingValue' value='100' type='text'/>
+  </div>
+  <div>
+	Recurring Deposit: $<input ng-model='recurringPayment' type='text'>
+	<input ng-model='depositFreq'  name='depositFreq' value='yearly'  title='Yearly' type='radio'>Y</input>
+	<input ng-model='depositFreq' name='depositFreq'  value='monthly'  id='months' title='Monthly' type='radio'>M</input>
+  </div>
+  <div>
+	<span title='Compounded Monthly'>Interest Rate<sup>i</sup>:</span>
+	<span class='{{calculatorKind}}'>{{interestRate}}%</span> 
+	<input ng-model='interestRate' class='not-{{calculatorKind}}' type='text'>
+  </div>
+  <div>
+	Timeframe: <input ng-model='timeFrame' type='text'></input>
+		<input ng-model='timeKind'  name='timeKind' value='yearly'  title='Years' type='radio'>Y</input>
+	<input ng-model='timeKind' name='timeKind'  value='monthly'  id='months' title='Monhts' type='radio'>M</input>
+  </div>
+  <div>
+  Net Value at End: 
+  <span class='not-{{calculatorKind}}'> {{finalValue | currency}} </span> 
+  <input class='{{calculatorKind}}' ng-model='finalValue' type='text'>
+  <p class='{{calculatorKind}} tiny' type='text'>Note: Average compound rate of return is approximate.</p>
+  </div>
+  </container>
+</body>
+<script>
+
+ 
+  function calculator($scope) {
+  
+  // default values
+  $scope.calculatorKind = 'interestMode'
+  $scope.calcname = "Net Value After Calculator";
+  $scope.startingValue = 100;
+  $scope.interestRate = 2;
+  $scope.recurringPayment = 0;
+  $scope.timeFrame = 10;
+  $scope.timeKind = 'yearly';
+  $scope.depositFreq = 'monthly';
+  $scope.finalValue = getFinalValue($scope);
+  
+  $scope.calculatorPrecision = 150; 
+  // Affects the accuracy of the compound interest guess at the cost of processing power.
+  
+  function getFinalValue($scope) {
+    
+    var numMonths = $scope.timeFrame;
+	
+	if ($scope.timeKind == 'yearly') {
+	  numMonths *= 12;
+	}
+	
+	var p1 = Number($scope.startingValue);
+	var pf = p1;
+	
+	var pr = Number($scope.recurringPayment);	
+	var yearlyInterestRate = Number($scope.interestRate);
+	
+    var monthlyInterestRate =  yearlyInterestRate / 12;
+	
+	
+	var i = 1 + (monthlyInterestRate / 100);
+	
+	if (!p1) p1 = 0;
+	if (!i) i = 1;
+	if (!pr) pr = 0;
+	
+	
+    var monthsThru = 0;
+
+	for (var n = 0; n < numMonths; n++) {
+	   if ($scope.depositFreq == 'monthly') pf += pr;
+	   
+	   //pf = pf * i;     // for calculating payments at the beginning of the period
+	   
+	   if ($scope.depositFreq == 'yearly') {
+	   
+	      if (monthsThru == 0) pf += pr;
+		  monthsThru ++;
+		  if (monthsThru == 12) monthsThru = 0;
+	   
+	   }
+	   
+	   pf = pf * i;
+	   
+	}
+
+	
+	return pf.toFixed(2);
+      
+  }
+  
+  function getInterestRate($scope) {
+  
+    var numMonths = $scope.timeFrame;
+	
+	if ($scope.timeKind == 'yearly') {
+	  numMonths *= 12;
+	}
+
+	var apf = $scope.finalValue;
+	
+	var p1 = Number($scope.startingValue);
+	var pf = p1;		
+	var pr = Number($scope.recurringPayment);
+    var i = 1.01;	
+	
+	if (pf < p1) return 0;
+	
+	var monthsThru = 12;
+	
+	var guessI = i;
+	
+	var precision;
+	var targetPrecision = 10; // less than this amount apart	
+
+	var count =   $scope.calculatorPrecision;
+	var adjustmentAmount = 0.01;
+	
+	while (count > 0)
+	{
+	  
+		for (var n = 0; n < numMonths; n++) {
+		   if ($scope.depositFreq == 'monthly') pf += pr;
+		   
+		   
+		   if ($scope.depositFreq == 'yearly') {
+		   
+			  if (monthsThru == 0) pf += pr;
+			  monthsThru ++;
+			  if (monthsThru == 12) monthsThru = 0
+		   
+		   }  
+		   
+			pf = pf * guessI;
+		   
+		}
+
+		if (apf > pf) {
+		
+		   guessI += adjustmentAmount;
+		
+		}
+		else {
+		
+		  guessI -= adjustmentAmount;
+		
+		}
+		precision = Math.abs(pf - apf);
+		
+		
+		console.log('Precision?' + precision);
+		if (precision < 0.01)
+		{
+		  console.log("Good enough.");
+		  break;
+		}
+		
+		adjustmentAmount *= 0.9;
+		pf = p1;	
+		
+		count--;
+	}
+		
+	
+	i = ((guessI - 1) * 12) * 100;	
+	if (precision > 10) return "?"
+	return i.toFixed(2);
+      
+  }
+  
+  $scope.$watch('startingValue+timeFrame+recurringPayment+timeKind+depositFreq+endValueInput', function (value) {
+    if ($scope.calculatorKind == 'netValueMode') {
+        $scope.finalValue = getFinalValue($scope);
+	}
+	else {
+	  $scope.interestRate = getInterestRate($scope);
+
+	}
+    
+  })
+	
+  $scope.$watch('finalValue', function (value) {
+  
+	if ($scope.calculatorKind != 'netValueMode') {
+        $scope.interestRate = getInterestRate($scope);
+	}})
+	
+   $scope.$watch('interestRate', function (value) {
+  
+	if ($scope.calculatorKind == 'netValueMode') {
+        $scope.finalValue = getFinalValue($scope);
+	}})
+	
+	 $scope.$watch('calculatorKind', function (value) {
+	if ($scope.calculatorKind == 'netValueMode') {
+        $scope.calcname = "Net Value After Calculator";
+	}
+	else {	
+	    $scope.calcname = "Compound Rate of Return Calculator";
+    }
+	
+	})
+}
+
+
+</script>
+
+</html>
